@@ -303,13 +303,17 @@ class CornersProblem(search.SearchProblem):
         
         "*** YOUR CODE HERE *** (Q5)"
         """ A state space can be the start coordinates and a list to hold visited corners"""
+        
+        # Marking the starting position as visited if it's a corner, otherwise all corners are false.
         visited = [False, False, False, False]
-
+        
+        # checking to see if the starting position is a corner
         for i, corner in enumerate(self.corners):
+
+            # if the starting position is a corner, then it will be marked as visited
             if self.startingPosition == corner:
                 visited[i] = True
-
-        return (self.startingPosition, tuple(visited))
+        return (self.startingPosition, tuple(visited)) # is the tuple of a visited corner
 
     def isGoalState(self, state: Any):
         """
@@ -318,8 +322,12 @@ class CornersProblem(search.SearchProblem):
         "*** YOUR CODE HERE *** (Q5)"
         
         """ Check to see if a state is a corner, and if so are the other corners visited """
-        postion, visited = state
-        return all(visited)
+        
+        # the position will unpack the state into the list of position
+        position, corners_visited = state 
+        
+        # if the position is a corner, then we will mark it as a visited corner
+        return all(corners_visited)
 
     def getSuccessors(self, state: Any):
         """
@@ -334,7 +342,9 @@ class CornersProblem(search.SearchProblem):
 
         successors = []
 
-        position, visited = state
+        # Unpack state once before the loop
+        position, corners_visited = state
+        x, y = position
 
         for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
             # Add a successor state to the successor list if the action is legal
@@ -345,21 +355,25 @@ class CornersProblem(search.SearchProblem):
             #   hitsWall = self.walls[nextx][nexty]
 
             "*** YOUR CODE HERE *** (Q5)"
-            x,y = position
+            
+            # Calculates the next position based on the current postion and the action taken
             dx, dy = Actions.directionToVector(action)
             nextx, nexty = int(x + dx), int(y + dy)
-
+            
+            # Will check to see if the next position is a wall
             if not self.walls[nextx][nexty]:
                 next_position = (nextx, nexty)
-                visited_list = list(visited)
+                
+                # Check if we reached a corner and update visited status
+                new_corners_visited = list(corners_visited)
+                for i in range(len(self.corners)):
+                    if next_position == self.corners[i]:
+                        new_corners_visited[i] = True
+                
+                # Create the next state
+                next_state = (next_position, tuple(new_corners_visited))
+                successors.append((next_state, action, 1))
 
-                for i, corner in enumerate(self.corners):
-                    if next_position == corner:
-                        visited_list[i] = True
-
-                successors.append(
-                    ((next_position, tuple(visited_list)), action, 1)
-                )
 
         self._expanded += 1 # DO NOT CHANGE
         return successors
@@ -380,46 +394,46 @@ class CornersProblem(search.SearchProblem):
 
 def cornersHeuristic(state: Any, problem: CornersProblem):
     """
-    A heuristic for the CornersProblem that you defined.
+    A heuristic for the CornersProblem.
 
-      state:   The current search state
-               (a data structure you chose in your search problem)
-
-      problem: The CornersProblem instance for this layout.
-
-    This function should always return a number that is a lower bound on the
-    shortest path from the state to a goal of the problem; i.e.  it should be
-    admissible (as well as consistent).
+    Returns a lower bound on the remaining distance to visit all corners.
+    Must be non-negative, 0 at goal, and admissible/consistent.
     """
-    corners = problem.corners # These are the corner coordinates
-    walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
+    corners = problem.corners
+    walls = problem.walls  # not used here, but kept to match template
 
     "*** YOUR CODE HERE *** (Q6)"
-    
-    position, visited = state
-    unvisited = []
 
-    # Collect all the unvisited corners
+    position, corners_visited = state
+
+    # build list of corners we still need to visit
+    unvisited = []
     for i in range(4):
-        if not visited[i]:
+        if not corners_visited[i]:
             unvisited.append(corners[i])
 
-    heuristic = 0
-    current_position = position
+    # if all corners are visited, heuristic is 0
+    if len(unvisited) == 0:
+        return 0
 
-    # Greedy sum of Manhattan distances
-    while unvisited:
-        distances = [
-            (util.manhattanDistance(current_position, corner), corner)
-            for corner in unvisited
-        ]
+    # if only one corner left, it's just Manhattan distance to it
+    if len(unvisited) == 1:
+        return util.manhattanDistance(position, unvisited[0])
 
-        min_distance, closest_corner = min(distances)
-        heuristic += min_distance
-        current_position = closest_corner
-        unvisited.remove(closest_corner)
+    # try all orders of visiting the remaining corners (max 4! = 24)
+    import itertools
+    best = float('inf')
 
-    return heuristic
+    for order in itertools.permutations(unvisited):
+        cost = 0
+        cur = position
+        for c in order:
+            cost += util.manhattanDistance(cur, c)
+            cur = c
+        if cost < best:
+            best = cost
+
+    return best
 
 
 
